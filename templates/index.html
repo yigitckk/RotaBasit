@@ -2,13 +2,22 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
+    <!-- Make it responsive -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RotaBasit</title>
 
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Add Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+     integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+     crossorigin=""/>
+
+    <!-- Add Leaflet JavaScript -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+     integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+     crossorigin=""></script>
 
     <style>
+        /* Base styles */
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
             background-color: #f9f9f9;
@@ -16,7 +25,12 @@
             flex-direction: column;
             align-items: center;
             padding: 1rem;
+            min-height: 100vh;
+            margin: 0;
+            box-sizing: border-box; /* Include padding in height/width */
         }
+
+        /* Main control container */
         .container {
             width: 95%;
             max-width: 600px;
@@ -26,30 +40,37 @@
             border-radius: 10px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.05);
             margin-bottom: 1rem;
+            box-sizing: border-box;
         }
-        /* */
+
+        /* Checkbox list styles */
         #checkbox-container {
             text-align: left;
             margin: 1.5rem 0;
             display: grid;
-            grid-template-columns: 1fr 1fr; /* Two columns */
+            grid-template-columns: 1fr 1fr; /* Two columns on desktop */
             gap: 10px;
         }
         #checkbox-container div {
             padding: 5px;
             border-radius: 5px;
             background: #fdfdfd;
+            display: flex; /* Align checkbox and label */
+            align-items: center;
         }
         #checkbox-container label {
             margin-left: 8px;
             font-size: 1.1rem;
             cursor: pointer;
+            flex: 1; /* Allow label to take remaining space */
         }
         #checkbox-container input {
             width: 16px;
             height: 16px;
+            cursor: pointer;
         }
 
+        /* Button styles */
         button {
             background-color: #007aff;
             color: white;
@@ -59,30 +80,70 @@
             font-size: 1rem;
             font-weight: bold;
             cursor: pointer;
+            width: 100%; /* Make button full-width */
         }
+
+        /* Results area (List + Map) */
         .results-container {
             display: flex;
             width: 95%;
             max-width: 1000px;
             gap: 1rem;
+            box-sizing: border-box;
+            flex-grow: 1; /* Allow this to fill remaining space */
         }
+
+        /* List styles */
         #results-list {
-            flex: 1;
+            flex: 1; /* Takes 1/3 of space on desktop */
             text-align: left;
-            padding: 10px;
+            padding: 10px 15px;
             background-color: #fff;
             border-radius: 5px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.05);
             height: 400px;
             overflow-y: auto;
+            box-sizing: border-box;
         }
+
+        /* Map styles */
         #map {
-            flex: 2;
+            flex: 2; /* Takes 2/3 of space on desktop */
             height: 400px;
             border-radius: 10px;
             box-shadow: 0 4px 12px rgba(0,0,0,0.05);
         }
 
+        /* --- MEDIA QUERY for MOBILE --- */
+        @media (max-width: 768px) {
+            body {
+                padding: 0.5rem;
+            }
+
+            .container {
+                padding: 1.5rem 1rem; /* Reduce padding on main container */
+                width: 100%;
+            }
+
+            .results-container {
+                flex-direction: column; /* Stack list and map vertically */
+                width: 100%;
+            }
+
+            #map {
+                height: 300px; /* Make map a bit shorter on mobile */
+                flex-basis: 300px; /* Explicit height */
+            }
+
+            #results-list {
+                height: 200px; /* Make list a bit shorter too */
+                flex-basis: 200px; /* Explicit height */
+            }
+
+            #checkbox-container {
+                grid-template-columns: 1fr; /* Stack checkboxes in one column */
+            }
+        }
     </style>
 </head>
 <body>
@@ -91,6 +152,7 @@
         <h1>RotaBasit 📍</h1>
         <p>Hangi duraklara uğramak istiyorsunuz? Seçim yapın:</p>
 
+        <!-- Jinja2 loop creates the checkboxes from Python -->
         <div id="checkbox-container">
             {% for name in address_names %}
                 <div>
@@ -103,6 +165,7 @@
         <button id="solve-button">Rotayı Optimize Et</button>
     </div>
 
+    <!-- This is where our results will appear -->
     <div class="results-container">
         <div id="results-list">
             <p>Optimum rota burada görünecek...</p>
@@ -112,13 +175,19 @@
 
 
     <script>
-        // --- Map Initialization (Same as before) ---
+        // --- Map Initialization ---
         const solveButton = document.getElementById('solve-button');
         const resultsListDiv = document.getElementById('results-list');
-        const map = L.map('map').setView([37.7744, 29.0929], 13); // Denizli
+
+        // Initialize the map and set its view to Denizli
+        const map = L.map('map').setView([37.7744, 29.0929], 13); // [lat, lng], zoom
+
+        // Add the "tile layer" - this is the map image (from OpenStreetMap)
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         }).addTo(map);
+
+        // This will hold our markers and polylines so we can clear them
         let routeLayerGroup = L.featureGroup().addTo(map);
         // --- END Map Initialization ---
 
@@ -131,27 +200,27 @@
             resultsListDiv.innerHTML = '<p>Hesaplanıyor... (Python/OR-Tools çalışıyor)</p>';
             routeLayerGroup.clearLayers();
 
-            // --- 2. NEW: Get selected locations from checkboxes ---
+            // --- 2. Get selected locations from checkboxes ---
             const checkboxes = document.querySelectorAll('.address-checkbox:checked');
             const selectedLocations = [];
             checkboxes.forEach(checkbox => {
                 selectedLocations.push(checkbox.value);
             });
 
-            // --- 3. NEW: Call our Flask backend's /solve route ---
+            // --- 3. Call our Flask backend's /solve route ---
             try {
                 const response = await fetch('/solve', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    // NEW: We send the list of selected locations as JSON
+                    // Send the list of selected locations as JSON
                     body: JSON.stringify({ locations: selectedLocations })
                 });
 
                 const data = await response.json();
 
-                // --- 4. Process the response (Same as before) ---
+                // --- 4. Process the response ---
                 if (data.status === 'success') {
                     // Build the list
                     let routeHtml = '<h3>İşte Optimum Rota:</h3><ol>';
@@ -161,7 +230,7 @@
                     routeHtml += '</ol>';
                     resultsListDiv.innerHTML = routeHtml;
 
-                    // --- 5. Draw on Map (Same as before) ---
+                    // --- 5. Draw on Map ---
                     const routeCoords = data.route.map(stop => stop.coords);
 
                     if (routeCoords.length > 1) {
@@ -191,6 +260,7 @@
                 }
 
             } catch (error) {
+                // Handle any network errors
                 console.error('Error:', error);
                 resultsListDiv.innerHTML = '<p><strong>Ağ Hatası:</strong> Sunucuya ulaşılamadı. Flask sunucusu çalışıyor mu?</p>';
             }
